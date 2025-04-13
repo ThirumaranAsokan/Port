@@ -1,84 +1,63 @@
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # We might still use this for initial page info
 import pandas as pd
 import time
 import os
-from supabase import create_client, Client  # Import Supabase library
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from supabase import create_client, Client
+import xml.etree.ElementTree as ET  # For parsing XML
 
 
 def fetch_abp_data():
     URL = "https://www.southamptonvts.co.uk/Live_Information/Shipping_Movements_and_Cruise_Ship_Schedule/Vessels_Alongside/"
-    
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome(options=chrome_options)
-    
+    headers = {"User-Agent": "Mozilla/5.0"}
+
     try:
-        driver.get(URL)
-        
-        # Check for iframe and switch to it if found
-        iframe = driver.find_element(By.TAG_NAME, "iframe")
-        if iframe:
-            driver.switch_to.frame(iframe)
-            print("Switched to iframe")
-        
-        wait = WebDriverWait(driver, 10)
-        table = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "table.xmlTable")))
-        
-        html = driver.page_source
-    except Exception as e:
-        print(f"Error fetching ABP data: {e}")
-        driver.quit()
+        response = requests.get(URL, headers=headers, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "html.parser")  # Use response.content for bytes
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching ABP page: {e}")
         return None
-    
-    driver.quit()
-    
-    # Switch back to the default content
-    driver.switch_to.default_content()
-    
-    soup = BeautifulSoup(html, "html.parser")
-    table = soup.select_one("table.xmlTable")
-    if not table:
-        print("Could not find table with specific selector, trying a broader search...")
-        table = soup.find("table")  # Try finding any table
-        if not table:
-            print("Could not find any table on the page!")
+
+    #  ---  FIND THE XML URL  ---
+    #  You'll need to inspect the page's JavaScript to find the exact URL of the XML file.
+    #  It's likely within the LoadXml.js script.  For example:
+    # xml_url = "https://www.southamptonvts.co.uk/path/to/sotberthed.xml"  #  <---  REPLACE THIS WITH THE ACTUAL XML URL
+    xml_url = "https://www.southamptonvts.co.uk/content/files/assets/sotberthed.xml" #This is the correct URL
+    #  ---  FIND THE XML URL  ---
+
+    try:
+        xml_response = requests.get(xml_url, headers=headers, timeout=10)
+        xml_response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching XML data: {e}")
+        return None
+
+    try:
+        root = ET.fromstring(xml_response.text)
+        #  ---  PARSE THE XML  ---
+        #  This part will depend on the structure of the XML.
+        #  You'll need to examine the XML to determine the correct tags and attributes to extract.
+        data = []
+        for vessel in root.findall(".//vessel"):  # Adjust the tag name as needed
+            vessel_data = {
+                "name": vessel.find("name").text if vessel.find("name") is not None else None,
+                "location": vessel.find("location").text if vessel.find("location") is not None else None,
+                "time": vessel.find("time").text if vessel.find("time") is not None else None,
+                #  Add more fields as needed
+            }
+            data.append(vessel_data)
+        #  ---  PARSE THE XML  ---
+
+        if data:
+            df = pd.DataFrame(data)
+            return df
+        else:
+            print("No data extracted from XML.")
             return None
-    else:
-        print("Found table with specific selector.")
-    
-    # Get headers
-    ths = table.find("tr").find_all("th")
-    col_names = [th.get_text(strip=True) for th in ths]
 
-    # Get rows
-    data = []
-    tbody = table.find("tbody")  # It's good practice to look within the tbody if it exists
-    if tbody:
-        rows = tbody.find_all("tr")[1:]  # Skip the header row
-    else:
-        rows = table.find_all("tr")[1:]  # If no tbody, start from the second tr
-
-    for tr in rows:
-        cols = tr.find_all("td")
-        if cols and len(cols) == len(col_names):  # Ensure the number of columns matches headers
-            row = [td.get_text(strip=True) for td in cols]
-            data.append(row)
-        elif cols:
-            print(f"Warning: Row with {len(cols)} columns found, expected {len(col_names)}")
-
-    # Create a DataFrame for better handling
-    if data and col_names:
-        df = pd.DataFrame(data, columns=col_names)
-        return df
-    else:
-        print("No data extracted from the table.")
+    except ET.ParseError as e:
+        print(f"Error parsing XML: {e}")
         return None
 
 
@@ -96,7 +75,6 @@ def push_to_supabase(df: pd.DataFrame):
     for _, row in df.iterrows():
         data = row.to_dict()
         try:
-            # Instead of directly checking response.error, let's look for errors in the response data
             response = supabase.table("abp_vessel_data").insert(data).execute()
             if response.data:
                 print(f"Inserted row: {data}")
@@ -112,7 +90,7 @@ def main():
     df = fetch_abp_data()
     if df is not None:
         print(df.head())
-        push_to_supabase(df)  # Push data to Supabase
+        push_to_supabase(df)
     else:
         print("No data fetched.")
 
