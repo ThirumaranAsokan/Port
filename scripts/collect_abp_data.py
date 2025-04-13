@@ -20,10 +20,8 @@ def fetch_abp_data():
         return None
 
     #  ---  FIND THE XML URL  ---
-    #  You'll need to inspect the page's JavaScript to find the exact URL of the XML file.
-    #  It's likely within the LoadXml.js script.  For example:
-    # xml_url = "https://www.southamptonvts.co.uk/path/to/sotberthed.xml"  #  <---  REPLACE THIS WITH THE ACTUAL XML URL
-    xml_url = "https://www.southamptonvts.co.uk/content/files/assets/sotberthed.xml" #This is the correct URL
+    #  The XML URL is directly available in the script tag
+    xml_url = "https://www.southamptonvts.co.uk/content/files/assets/sotberthed.xml"
     #  ---  FIND THE XML URL  ---
 
     try:
@@ -39,11 +37,17 @@ def fetch_abp_data():
         #  This part will depend on the structure of the XML.
         #  You'll need to examine the XML to determine the correct tags and attributes to extract.
         data = []
-        for vessel in root.findall(".//vessel"):  # Adjust the tag name as needed
+        for vessel in root.findall(".//Vessel"):  # Adjust the tag name as needed
             vessel_data = {
-                "name": vessel.find("name").text if vessel.find("name") is not None else None,
-                "location": vessel.find("location").text if vessel.find("location") is not None else None,
-                "time": vessel.find("time").text if vessel.find("time") is not None else None,
+                "Name": vessel.find("Name").text if vessel.find("Name") is not None else None,
+                "Location": vessel.find("Location").text if vessel.find("Location") is not None else None,
+                "ATB": vessel.find("ATB").text if vessel.find("ATB") is not None else None,
+                "ATA": vessel.find("ATA").text if vessel.find("ATA") is not None else None,
+                "AFD": vessel.find("AFD").text if vessel.find("AFD") is not None else None,
+                "ADP": vessel.find("ADP").text if vessel.find("ADP") is not None else None,
+                "ETB": vessel.find("ETB").text if vessel.find("ETB") is not None else None,
+                "ETD": vessel.find("ETD").text if vessel.find("ETD") is not None else None,
+
                 #  Add more fields as needed
             }
             data.append(vessel_data)
