@@ -4,7 +4,6 @@ import pandas as pd
 import time
 import os
 from supabase import create_client, Client
-from selenium import webdriver
 import xml.etree.ElementTree as ET
 
 
