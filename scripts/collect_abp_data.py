@@ -9,7 +9,7 @@ from selenium.webdriver.chrome.options import Options  # Or FirefoxOptions, etc.
 
 
 def fetch_abp_data():
-    URL = "https://www.southamptonvts.co.uk/Live-Information/Shipping-Movements/"
+    URL = "https://www.southamptonvts.co.uk/Live_Information/Shipping_Movements_and_Cruise_Ship_Schedule/Vessels_Alongside/"
     
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Run Chrome in headless mode (no GUI)
