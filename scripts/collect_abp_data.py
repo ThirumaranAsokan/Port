@@ -4,24 +4,35 @@ import pandas as pd
 import time
 import os
 from supabase import create_client, Client  # Import Supabase library
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options  # Or FirefoxOptions, etc.
+
 
 def fetch_abp_data():
     URL = "https://www.southamptonvts.co.uk/Live-Information/Shipping-Movements/"
-    headers = {"User-Agent": "Mozilla/5.0"}
-
+    
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run Chrome in headless mode (no GUI)
+    chrome_options.add_argument("--disable-gpu")  # Optional: Disable GPU acceleration
+    driver = webdriver.Chrome(options=chrome_options)  # Or webdriver.Firefox() etc.
+    
     try:
-        response = requests.get(URL, headers=headers, timeout=10)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
+        driver.get(URL)
+        time.sleep(5)  # Wait for the JavaScript to load (adjust as needed)
+        html = driver.page_source
+    except Exception as e:
         print(f"Error fetching ABP data: {e}")
+        driver.quit()
         return None
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    table = soup.find("table", class_="xmlTable")  # Target the table by its class name
+    
+    driver.quit()  # Close the browser
+    
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.select_one("table.xmlTable")  # You might need to adjust this selector based on the rendered HTML
     if not table:
-        print("Could not find table with class 'xmlTable' in ABP page")
+        print("Could not find table in ABP page after JavaScript execution")
         return None
-
+    
     # Get headers
     ths = table.find("tr").find_all("th")
     col_names = [th.get_text(strip=True) for th in ths]
@@ -50,6 +61,7 @@ def fetch_abp_data():
         print("No data extracted from the table.")
         return None
 
+
 def push_to_supabase(df: pd.DataFrame):
     """Pushes the DataFrame to Supabase."""
 
@@ -75,6 +87,7 @@ def push_to_supabase(df: pd.DataFrame):
         except Exception as e:
             print(f"Error connecting to Supabase: {e}")
 
+
 def main():
     df = fetch_abp_data()
     if df is not None:
@@ -82,6 +95,7 @@ def main():
         push_to_supabase(df)  # Push data to Supabase
     else:
         print("No data fetched.")
+
 
 if __name__ == "__main__":
     main()
