@@ -5,33 +5,53 @@ import time
 import os
 from supabase import create_client, Client  # Import Supabase library
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options  # Or FirefoxOptions, etc.
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 def fetch_abp_data():
-    URL = "https://www.southamptonvts.co.uk/Live_Information/Shipping_Movements_and_Cruise_Ship_Schedule/Vessels_Alongside/"
+    URL = "https://www.southamptonvts.co.uk/Live-Information/Shipping-Movements/"
     
     chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run Chrome in headless mode (no GUI)
-    chrome_options.add_argument("--disable-gpu")  # Optional: Disable GPU acceleration
-    driver = webdriver.Chrome(options=chrome_options)  # Or webdriver.Firefox() etc.
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    driver = webdriver.Chrome(options=chrome_options)
     
     try:
         driver.get(URL)
-        time.sleep(5)  # Wait for the JavaScript to load (adjust as needed)
+        
+        # Check for iframe and switch to it if found
+        iframe = driver.find_element(By.TAG_NAME, "iframe")
+        if iframe:
+            driver.switch_to.frame(iframe)
+            print("Switched to iframe")
+        
+        wait = WebDriverWait(driver, 10)
+        table = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "table.xmlTable")))
+        
         html = driver.page_source
     except Exception as e:
         print(f"Error fetching ABP data: {e}")
         driver.quit()
         return None
     
-    driver.quit()  # Close the browser
+    driver.quit()
+    
+    # Switch back to the default content
+    driver.switch_to.default_content()
     
     soup = BeautifulSoup(html, "html.parser")
-    table = soup.select_one("table.xmlTable")  # You might need to adjust this selector based on the rendered HTML
+    table = soup.select_one("table.xmlTable")
     if not table:
-        print("Could not find table in ABP page after JavaScript execution")
-        return None
+        print("Could not find table with specific selector, trying a broader search...")
+        table = soup.find("table")  # Try finding any table
+        if not table:
+            print("Could not find any table on the page!")
+            return None
+    else:
+        print("Found table with specific selector.")
     
     # Get headers
     ths = table.find("tr").find_all("th")
