@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 async def connect_ais_stream():
   async with websockets.connect("wss://stream.aisstream.io/v0/stream") as websocket:
-    subscribe_message = {"APIKey": "<API KEY>",
+    subscribe_message = {"APIKey": "5341051c1bed9d8c9b96ae8ea4d27fd4b6942994",
                          "BoundingBoxes": [[[-90, -180], [90, 180]]], 
                          "FiltersShipMMSI": ["368207620", "367719770", "211476060"],
                          "FilterMessageTypes": ["PositionReport"]}
