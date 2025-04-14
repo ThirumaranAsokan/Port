@@ -5,3 +5,13 @@ micros:
     engine: python3.9
     run: python main.py
     dev: python main.py
+    primary: true
+    public: false
+    presets:
+      env:
+        - name: SUPABASE_URL
+          description: URL for Supabase database
+        - name: SUPABASE_KEY
+          description: API key for Supabase
+        - name: AIS_API_KEY
+          description: API key for AIS Stream
